@@ -1,0 +1,131 @@
+Create Kubernates clustur with EKS
+Prerequisits to create EKS Cluster:
+	IAM Role
+	VPC
+	Install and Configure kubectl
+	AWSCLI
+
+
+
+Kubectl: Used for communicating with the cluster API server
+-------------------------------------------------------------
+curl -o kubectl https://amazon-eks.s3-us-west-2.amazonaws.com/1.14.6/2019-08-22/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+mkdir -p $HOME/bin
+cp ./kubectl $HOME/bin/kubectl
+export PATH=$HOME/bin:$PATH
+echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
+source $HOME/.bashrc
+kubectl version --short --client
+
+
+
+AWS-IAM-Authenticator: To allow IAM authentication with the Kubernetes cluster
+-----------------------------------------------------------------------------
+curl -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.14.6/2019-08-22/bin/linux/amd64/aws-iam-authenticator
+chmod +x ./aws-iam-authenticator
+cp ./aws-iam-authenticator $HOME/bin/aws-iam-authenticator
+export PATH=$HOME/bin:$PATH
+echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+aws-iam-authenticator --help
+
+
+Create VPC for EKS:
+--------------------
+Open Cloud Formation
+---------------------
+	Give Amazon S3 URL-
+https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/amazon-eks-vpc-sample.yaml
+	Click on Next 
+
+Create EKS Cluster:
+--------------------
+aws eks create-cluster \
+  --name eks-cluster \
+  --region us-east-1 \
+  --role-arn arn:aws:iam::791382328408:role/eks-role-demo \
+  --resources-vpc-config subnetIds=subnet-0f090fabc62b72892,subnet-038a6ebb8d284ae0f,subnet-073b197f89161230c,securityGroupIds=sg-0a96c334f64cb8124
+
+To check status of Cluster:
+----------------------------
+aws eks --region us-east-1 describe-cluster --name eks-cluster --query cluster.status
+
+After Creation of Cluster need to Update:
+-----------------------------------------
+aws eks --region us-east-1 update-kubeconfig --name eks-cluster
+
+Launching Kubernetes worker nodes:
+-----------------------------------
+ Click on Create Stack
+
+Give below link at Amazon S3 URL to create nodes:
+---------------------------------------------------
+https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/amazon-eks-nodegroup.yaml
+(https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html){to find ami id}
+--------------------------------------------------------------------------
+worker Node AMI - ami-0dc7713312a7ec987 (Should give this only for US-EAST-1)
+
+	To enable worker nodes to join your cluster:
+-------------------------------------------------------
+Download the AWS authenticator configuration map
+curl -o aws-auth-cm.yaml https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/aws-auth-cm.yaml
+
+vi aws-auth-cm.yaml
+kubectl apply -f aws-auth-cm.yaml
+kubectl get nodes --watch
+
+deployements
+-------------
+ kubectl run --image=nginx nginx-app --port=80
+   84  kubectl get deployment
+   85  kubectl expose deployment nginx-app --port=80 --name=nginx-http --type LoadBalancer
+   86  kubectl get svc nginx-http
+       kubectl delete svc nginx-http
+	   kubectl delete deployment nginx-app
+	   kubectl delete deployments
+
+kubectl cluster delete
+-----------------------
+	   
+	aws eks --region us-east-1 delete-cluster --name eks-cluster   
+
+Install Docker:
+---------------
+amazon-linux-extras install docker -y
+service docker start
+usermod -a -G docker ec2-user
+chmod 666 /var/run/docker.sock
+chown ec2-user:docker /var/run/docker.sock
+
+Helm Installation on Linux:
+---------------------------
+wget https://get.helm.sh/helm-v3.0.2-linux-amd64.tar.gz
+tar xvzf helm-v3.0.2-linux-amd64.tar.gz
+cd linux-amd64/
+mv helm /usr/local/bin
+export PATH=$PATH:/usr/local/bin	
+
+MYSQL Installation on Linux:
+----------------------------
+wget https://dev.mysql.com/get/mysql57-community-release-el7-11.noarch.rpm
+yum localinstall mysql57-community-release-el7-11.noarch.rpm -y
+yum install mysql-community-server -y
+systemctl start mysqld.service
+# Here we get pwd
+cat /var/log/mysqld.log
+# Mysql Login
+mysql -u root -p
+# To change pwd for "root" user
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'Naresh#240';
+# Enable Remote Access (Grant)
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY 'Naresh#240' WITH GRANT OPTION;
+GRANT ALL ON mysql.* TO root@localhost;
+
+SELECT user,authentication_string,plugin,host FROM mysql.user;
+
+user access key secret access keys
+-----------------------------------
+AKIA3QQQQARMOHPIJNY7
+cStXiH+5OjwbszQ2O4TTy4+smDVUP0tg8ZS2p/ML
+
